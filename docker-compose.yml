@@ -1,0 +1,46 @@
+#version: '3.7'
+
+networks:
+  edt-net:
+
+services:
+  app:
+    build:
+      context: .
+      target: builder
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    volumes:
+      - .:/code/
+    ports:
+      - 8000:8000
+#    depends_on:
+#      db:
+#        condition: service_started
+    networks:
+      - edt-net
+
+  db:
+    image: postgis/postgis:15-3.4
+    environment:
+      - POSTGRES_DB=postgres
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    volumes:
+      - dbdata:/var/lib/postgresql/data
+    networks:
+      - edt-net
+    ports:
+      - "5432:5432"
+
+  migration:
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/postgres?sslmode=disable
+    image: edt-test_app:latest
+    networks:
+      - edt-net
+    entrypoint: /bin/sh -c "dbmate wait && dbmate up"
+    depends_on:
+      - db
+
+volumes:
+  dbdata:
